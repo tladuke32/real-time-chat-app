@@ -3,6 +3,8 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -27,13 +29,18 @@ var db *sql.DB
 
 func init() {
 	var err error
-	db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chatapp")
-	if err != nil {
-		panic(err)
+
+	for retries := 5; retries > 0; retries-- {
+		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chatapp")
+		if err == nil && db.Ping() == nil {
+			break
+		}
+		log.Printf("MySQL connection failed, retrying in 5 seconds... (%d retries left)", retries)
+		time.Sleep(5 * time.Second)
 	}
 
-	if err = db.Ping(); err != nil {
-		panic(err)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to MySQL: %v", err))
 	}
 }
 
