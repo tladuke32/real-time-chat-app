@@ -1,5 +1,5 @@
 # Stage 1: Build the Go binary
-FROM golang:1.22.4-alpine AS builder
+FROM golang:1.20-alpine AS builder
 WORKDIR /app
 
 # Copy go.mod and go.sum files
@@ -16,7 +16,7 @@ RUN go build -o main .
 
 # Stage 2: Run the binary
 FROM alpine:latest
-WORKDIR /root/
+WORKDIR /app/
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .

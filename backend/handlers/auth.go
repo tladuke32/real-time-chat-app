@@ -30,17 +30,26 @@ var db *sql.DB
 func init() {
 	var err error
 
-	for retries := 5; retries > 0; retries-- {
-		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chatapp")
+	// Attempt to connect to the MySQL database with retry logic
+	retryCount := 5
+	for retries := retryCount; retries > 0; retries-- {
+		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chat-app?timeout=5s")
+
 		if err == nil && db.Ping() == nil {
+			log.Println("Successfully connected to MySQL")
 			break
 		}
-		log.Printf("MySQL connection failed, retrying in 5 seconds... (%d retries left)", retries)
+		log.Printf("MySQL connection failed: %v. Retrying in 5 seconds... (%d retries left)", err, retries)
 		time.Sleep(5 * time.Second)
 	}
 
 	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to MySQL: %v", err))
+		panic(fmt.Sprintf("Failed to connect to MySQL after %d attempts: %v", retryCount, err))
+	}
+
+	// Ensure the database connection is still alive
+	if err = db.Ping(); err != nil {
+		panic(fmt.Sprintf("MySQL connection is not alive: %v", err))
 	}
 }
 
@@ -114,11 +123,11 @@ func Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout handles user logout by clearing the JWT cookie
-func Logout(w http.ResponseWriter, r *http.Request) {
-	http.SetCookie(w, &http.Cookie{
-		Name:    "token",
-		Value:   "",
-		Expires: time.Now(),
-	})
-	w.WriteHeader(http.StatusOK)
-}
+//func Logout(w http.ResponseWriter, r *http.Request) {
+//	http.SetCookie(w, &http.Cookie{
+//		Name:    "token",
+//		Value:   "",
+//		Expires: time.Now(),
+//	})
+//	w.WriteHeader(http.StatusOK)
+//}

@@ -1,37 +1,38 @@
 version: '3.8'
 
 services:
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: chatapp
-      MYSQL_USER: chatuser
-      MYSQL_PASSWORD: chatpassword
+  frontend:
+    build:
+      context: ./frontend
     ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://backend:8080
+    networks:
+      - chat-network
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
     ports:
       - "8080:8080"
     depends_on:
-      mysql:
-        condition: service_healthy
+      - mysql
+    networks:
+      - chat-network
+
+  mysql:
+    image: mysql
     environment:
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USER: chatuser
-      DB_PASSWORD: chatpassword
-      DB_NAME: chatapp
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: chat-app
+    ports:
+      - "3306:3306"
+    networks:
+      - chat-network
 
-
-volumes:
-  mysql_data:
+networks:
+  chat-network:
+    driver: bridge

@@ -12,7 +12,7 @@ func main() {
 
 	r.HandleFunc("/register", handlers.Register).Methods("POST")
 	r.HandleFunc("/login", handlers.Login).Methods("POST")
-	r.HandleFunc("/logout", handlers.Logout).Methods("POST")
+	//	r.HandleFunc("/logout", handlers.Logout).Methods("POST")
 	r.HandleFunc("/ws", handlers.Chat).Methods("GET")
 
 	log.Println("Starting server on :8080")

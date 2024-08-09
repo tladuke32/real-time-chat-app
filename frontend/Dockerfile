@@ -1,8 +1,3 @@
-FROM ubuntu:latest
-LABEL authors="tladuke"
-
-ENTRYPOINT ["top", "-b"]
-
 # Start from the official Node.js image
 FROM node:16-alpine
 
