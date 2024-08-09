@@ -7,6 +7,7 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/golang-jwt/jwt/v4"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -19,7 +20,7 @@ type Credentials struct {
 
 type Claims struct {
 	Username string `json:"username"`
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 }
 
 var db *sql.DB
@@ -36,6 +37,7 @@ func init() {
 	}
 }
 
+// Register handles user registration
 func Register(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -58,6 +60,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// Login handles user login and JWT generation
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -84,8 +87,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		Username: creds.Username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
 	}
 
@@ -103,6 +106,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Logout handles user logout by clearing the JWT cookie
 func Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:    "token",

@@ -2,8 +2,8 @@ package main
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/tladuke32/real-time-chat-app/backend"
 	"log"
+	"net/http"
 )
 
 func main() {

@@ -1,26 +1,25 @@
-FROM ubuntu:latest
-LABEL authors="tladuke"
-
-ENTRYPOINT ["top", "-b"]
-
-# Start from the official Golang image
-FROM golang:1.20-alpine
-
-# Set the Current Working Directory inside the container
+# Stage 1: Build the Go binary
+FROM golang:1.22.4-alpine AS builder
 WORKDIR /app
 
-# Copy the go.mod and go.sum files and download the dependencies
+# Copy go.mod and go.sum files
 COPY go.mod go.sum ./
+
+# Download dependencies
 RUN go mod download
 
-# Copy the source code to the container
+# Copy the source code
 COPY . .
 
-# Build the Go app
+# Build the application
 RUN go build -o main .
 
-# Expose port 8080 to the outside world
-EXPOSE 8080
+# Stage 2: Run the binary
+FROM alpine:latest
+WORKDIR /root/
 
-# Command to run the executable
+# Copy the binary from the builder stage
+COPY --from=builder /app/main .
+
+# Run the binary
 CMD ["./main"]
