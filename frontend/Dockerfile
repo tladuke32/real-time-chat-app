@@ -14,6 +14,9 @@ COPY . .
 # Build the React app
 RUN npm run build
 
+# Set environment variables for the build
+ENV REACT_APP_API_URL=http://backend:8080
+
 # Expose port 3000 to the outside world
 EXPOSE 3000
 

@@ -5,10 +5,6 @@ function Login() {
     const [password, setPassword] = useState('');
     const apiURL = process.env.REACT_APP_API_URL;
 
-    fetch(`${apiURL}/api/http://backend:8080`)
-        .then(response => response.json())
-        .then(data => console.log(data))
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         const response = await fetch('/login', {
