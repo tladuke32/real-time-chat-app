@@ -13,13 +13,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// JWT key used for signing tokens (ensure this is kept secure)
 var jwtKey = []byte("my_secret_key")
 
+// Credentials represents the structure of user credentials
 type Credentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// Claims represents the structure of JWT claims
 type Claims struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
@@ -27,14 +30,12 @@ type Claims struct {
 
 var db *sql.DB
 
+// Initialize the database connection
 func init() {
 	var err error
-
-	// Attempt to connect to the MySQL database with retry logic
 	retryCount := 5
 	for retries := retryCount; retries > 0; retries-- {
-		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chat-app?timeout=5s")
-
+		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chat_app?timeout=5s")
 		if err == nil && db.Ping() == nil {
 			log.Println("Successfully connected to MySQL")
 			break
@@ -46,11 +47,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to MySQL after %d attempts: %v", retryCount, err))
 	}
-
-	// Ensure the database connection is still alive
-	if err = db.Ping(); err != nil {
-		panic(fmt.Sprintf("MySQL connection is not alive: %v", err))
-	}
 }
 
 // Register handles user registration
@@ -58,29 +54,38 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		log.Printf("Error decoding request payload: %v", err)
 		return
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Error encrypting password", http.StatusInternalServerError)
+		log.Printf("Error generating hashed password: %v", err)
 		return
 	}
 
 	_, err = db.Exec("INSERT INTO users(username, password) VALUES(?, ?)", creds.Username, string(hashedPassword))
 	if err != nil {
-		http.Error(w, "Username already taken", http.StatusConflict)
+		if isUniqueViolationError(err) {
+			http.Error(w, "Username already taken", http.StatusConflict)
+		} else {
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			log.Printf("Error inserting new user: %v", err)
+		}
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	log.Printf("User %s registered successfully", creds.Username)
 }
 
-// Login handles user login and JWT generation
+// Login handles user authentication and JWT generation
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		log.Printf("Error decoding request payload: %v", err)
 		return
 	}
 
@@ -89,14 +94,17 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+			log.Printf("Invalid login attempt for username: %s", creds.Username)
 			return
 		}
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		log.Printf("Error querying database for user %s: %v", creds.Username, err)
 		return
 	}
 
 	if err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(creds.Password)); err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		log.Printf("Invalid password attempt for username: %s", creds.Username)
 		return
 	}
 
@@ -112,22 +120,26 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		log.Printf("Error signing JWT for user %s: %v", creds.Username, err)
 		return
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:    "token",
-		Value:   tokenString,
-		Expires: expirationTime,
+		Name:     "token",
+		Value:    tokenString,
+		Expires:  expirationTime,
+		HttpOnly: true,                    // Security best practice to prevent JavaScript access
+		SameSite: http.SameSiteStrictMode, // Security best practice
 	})
+	log.Printf("User %s logged in successfully", creds.Username)
 }
 
-// Logout handles user logout by clearing the JWT cookie
-//func Logout(w http.ResponseWriter, r *http.Request) {
-//	http.SetCookie(w, &http.Cookie{
-//		Name:    "token",
-//		Value:   "",
-//		Expires: time.Now(),
-//	})
-//	w.WriteHeader(http.StatusOK)
-//}
+// Check if the error indicates a unique constraint violation
+func isUniqueViolationError(err error) bool {
+	// This will depend on the specific error returned by your database driver
+	// Example for MySQL: error code 1062 indicates a duplicate entry
+	if err != nil && err.Error() != "" && err.Error() == "Error 1062: Duplicate entry" {
+		return true
+	}
+	return false
+}

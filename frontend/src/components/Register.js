@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 function Register() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const apiURL = process.env.REACT_APP_API_URL; // Ensure this is correctly set in Dockerfile
+    const apiURL = process.env.REACT_APP_API_URL;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -15,7 +15,6 @@ function Register() {
             });
             if (response.ok) {
                 console.log('Registration successful');
-                // Handle successful registration logic
             } else {
                 console.error('Registration failed', await response.text());
             }

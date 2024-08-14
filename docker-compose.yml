@@ -1,21 +1,24 @@
 version: '3.8'
 
 services:
-  frontend:
-    build:
-      context: ./frontend
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+  mysql:
+    image: mysql:8.0
+    container_name: chat-app-mysql
+    restart: always
     environment:
-      - REACT_APP_API_URL=http://backend:8080
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE: chat_app
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpassword
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    ports:
+      - "3306:3306"
     networks:
       - chat-network
 
   backend:
-    build:
-      context: ./backend
+    build: ./backend
     ports:
       - "8080:8080"
     depends_on:
@@ -23,13 +26,14 @@ services:
     networks:
       - chat-network
 
-  mysql:
-    image: mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: secret
-      MYSQL_DATABASE: chat-app
+  frontend:
+    build: ./frontend
     ports:
-      - "3306:3306"
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
     networks:
       - chat-network
 

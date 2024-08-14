@@ -3,36 +3,67 @@ import React, { useEffect, useState } from 'react';
 function Chat() {
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
+    const [ws, setWs] = useState(null);
+    const [reconnect, setReconnect] = useState(false);
     const wsURL = process.env.REACT_APP_API_URL.replace('http', 'ws') + '/ws';
 
     useEffect(() => {
-        const ws = new WebSocket(wsURL);
+        const connectWebSocket = () => {
+            const socket = new WebSocket(wsURL);
+            setWs(socket);
 
-        ws.onmessage = (event) => {
-            setMessages((prevMessages) => [...prevMessages, event.data]);
+            socket.onopen = () => {
+                console.log('Connected to WebSocket');
+                setReconnect(false); // Reset reconnect flag on successful connection
+            };
+
+            socket.onmessage = (event) => {
+                setMessages((prevMessages) => [...prevMessages, event.data]);
+            };
+
+            socket.onerror = (error) => {
+                console.error('WebSocket Error:', error);
+            };
+
+            socket.onclose = (event) => {
+                console.log('WebSocket connection closed', event.reason);
+                if (!reconnect) {
+                    setReconnect(true);
+                }
+            };
+
+            // Clean up WebSocket connection on component unmount
+            return () => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            };
         };
 
-        ws.onerror = (error) => {
-            console.error('WebSocket Error:', error);
-        };
+        const socketCleanup = connectWebSocket();
+
+        // Reconnect logic
+        const reconnectInterval = setInterval(() => {
+            if (reconnect) {
+                socketCleanup();
+            }
+        }, 5000); // Attempt to reconnect every 5 seconds
 
         return () => {
-            ws.close();
+            clearInterval(reconnectInterval);
+            socketCleanup();
         };
-    }, [wsURL]);
+    }, [wsURL, reconnect]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const ws = new WebSocket(wsURL);
 
-        ws.onopen = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(message);
             setMessage('');
-        };
-
-        ws.onerror = (error) => {
-            console.error('WebSocket Error:', error);
-        };
+        } else {
+            console.error('WebSocket is not open. Cannot send message.');
+        }
     };
 
     return (
