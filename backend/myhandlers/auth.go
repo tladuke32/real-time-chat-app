@@ -131,6 +131,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,                    // Security best practice to prevent JavaScript access
 		SameSite: http.SameSiteStrictMode, // Security best practice
 	})
+	w.WriteHeader(http.StatusAccepted)
 	log.Printf("User %s logged in successfully", creds.Username)
 }
 

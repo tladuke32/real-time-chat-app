@@ -14,6 +14,8 @@ func main() {
 	r.HandleFunc("/register", appHandlers.Register).Methods("POST")
 	r.HandleFunc("/login", appHandlers.Login).Methods("POST")
 	//	r.HandleFunc("/logout", appHandlers.Logout).Methods("POST")
+	r.HandleFunc("user/{username}", appHandlers.GetUserProfile).Methods("GET")
+	r.HandleFunc("user/{userId}/update", appHandlers.UpdateUserProfile).Methods("POST")
 	r.HandleFunc("/ws", appHandlers.Chat).Methods("GET")
 	r.HandleFunc("/send", appHandlers.SendMessage).Methods("POST")
 	r.HandleFunc("/messages", appHandlers.GetMessages).Methods("GET")
