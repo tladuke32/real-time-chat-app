@@ -15,6 +15,8 @@ func main() {
 	r.HandleFunc("/login", appHandlers.Login).Methods("POST")
 	//	r.HandleFunc("/logout", appHandlers.Logout).Methods("POST")
 	r.HandleFunc("/ws", appHandlers.Chat).Methods("GET")
+	r.HandleFunc("/send", appHandlers.SendMessage).Methods("POST")
+	r.HandleFunc("/messages", appHandlers.GetMessages).Methods("GET")
 
 	corsHandler := handlers.CORS(
 		handlers.AllowedOrigins([]string{"http://localhost:3000"}), // Allow your frontend origin
