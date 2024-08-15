@@ -1,60 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 function Chat() {
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const [ws, setWs] = useState(null);
-    const [reconnect, setReconnect] = useState(false);
     const wsURL = process.env.REACT_APP_API_URL.replace('http', 'ws') + '/ws';
+    const [ws, setWs] = useState(null);
 
-    useEffect(() => {
-        const connectWebSocket = () => {
-            const socket = new WebSocket(wsURL);
-            setWs(socket);
+    // Function to initialize WebSocket connection
+    const connectWebSocket = useCallback(() => {
+        const socket = new WebSocket(wsURL);
 
-            socket.onopen = () => {
-                console.log('Connected to WebSocket');
-                setReconnect(false); // Reset reconnect flag on successful connection
-            };
-
-            socket.onmessage = (event) => {
-                setMessages((prevMessages) => [...prevMessages, event.data]);
-            };
-
-            socket.onerror = (error) => {
-                console.error('WebSocket Error:', error);
-            };
-
-            socket.onclose = (event) => {
-                console.log('WebSocket connection closed', event.reason);
-                if (!reconnect) {
-                    setReconnect(true);
-                }
-            };
-
-            // Clean up WebSocket connection on component unmount
-            return () => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.close();
-                }
-            };
+        socket.onopen = () => {
+            console.log('Connected to WebSocket');
         };
 
-        const socketCleanup = connectWebSocket();
+        socket.onmessage = (event) => {
+            setMessages(prevMessages => [...prevMessages, event.data]);
+        };
 
-        // Reconnect logic
-        const reconnectInterval = setInterval(() => {
-            if (reconnect) {
-                socketCleanup();
-            }
-        }, 5000); // Attempt to reconnect every 5 seconds
+        socket.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket connection closed');
+            // Automatically try to reconnect on unexpected closure
+            setTimeout(() => {
+                connectWebSocket();
+            }, 5000);
+        };
+
+        setWs(socket);
+        return () => {
+            socket.close();
+        };
+    }, [wsURL]);
+
+    // Establish WebSocket connection on component mount and clean up on unmount
+    useEffect(() => {
+        const cleanup = connectWebSocket();
 
         return () => {
-            clearInterval(reconnectInterval);
-            socketCleanup();
+            cleanup();
         };
-    }, [wsURL, reconnect]);
+    }, [connectWebSocket]);
 
+    // Handler for sending messages
     const handleSubmit = (e) => {
         e.preventDefault();
 

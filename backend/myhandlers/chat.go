@@ -4,41 +4,80 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"sync"
 )
 
 // Upgrader for handling WebSocket connections
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // For development, allow all origins. Restrict in production.
+		return true // Consider more secure checks for production
 	},
 }
 
-// Chat handles WebSocket connections and echoes messages back to clients
-func Chat(w http.ResponseWriter, r *http.Request) {
+// Clients map to keep track of connected WebSocket clients
+var clients = make(map[*websocket.Conn]bool)
+var lock = sync.Mutex{} // to handle concurrent access to clients map
+
+// WebSocketHandler manages all WebSocket connections for notifications and chats
+func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		http.Error(w, "Could not open WebSocket connection", http.StatusBadRequest)
-		log.Printf("Error while upgrading connection: %v", err)
+		log.Println("WebSocket Upgrade error:", err)
 		return
 	}
 	defer conn.Close()
 
-	log.Println("Client connected")
+	// Register client
+	lock.Lock()
+	clients[conn] = true
+	lock.Unlock()
+
+	log.Println("WebSocket client connected")
+	defer log.Println("WebSocket client disconnected")
 
 	for {
-		messageType, msg, err := conn.ReadMessage()
+		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("Error while reading message: %v", err)
+			log.Println("Error reading message:", err)
 			break
 		}
 
-		log.Printf("Received message: %s", msg)
+		// Broadcast received message to all clients
+		broadcastMessage(messageType, message)
+	}
+}
 
-		if err := conn.WriteMessage(messageType, msg); err != nil {
-			log.Printf("Error while writing message: %v", err)
-			break
+// broadcastMessage sends messages to all connected clients
+func broadcastMessage(messageType int, message []byte) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	for client := range clients {
+		if err := client.WriteMessage(messageType, message); err != nil {
+			log.Println("Error writing message:", err)
+			client.Close()
+			delete(clients, client)
 		}
 	}
+}
 
-	log.Println("Client disconnected")
+// Cleanup on client disconnect
+func removeClient(conn *websocket.Conn) {
+	lock.Lock()
+	delete(clients, conn)
+	lock.Unlock()
+	conn.Close()
+}
+
+func BroadcastNotification(msg string) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	for client := range clients {
+		if err := client.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			log.Println("Error broadcasting notification:", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
 }

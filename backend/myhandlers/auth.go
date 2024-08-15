@@ -13,16 +13,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// JWT key used for signing tokens (ensure this is kept secure)
 var jwtKey = []byte("my_secret_key")
 
-// Credentials represents the structure of user credentials
 type Credentials struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
-// Claims represents the structure of JWT claims
 type Claims struct {
 	Username string `json:"username"`
 	jwt.RegisteredClaims
@@ -30,7 +27,24 @@ type Claims struct {
 
 var db *sql.DB
 
-// Initialize the database connection
+func SetupDB(dsn string) {
+	var err error
+	retryCount := 5
+	for retries := retryCount; retries > 0; retries-- {
+		db, err = sql.Open("mysql", dsn)
+		if err == nil && db.Ping() == nil {
+			log.Println("Successfully connected to MySQL")
+			break
+		}
+		log.Printf("MySQL connection failed: %v. Retrying in 5 seconds... (%d retries left)", err, retries)
+		time.Sleep(5 * time.Second)
+	}
+
+	if err != nil {
+		panic(fmt.Sprintf("Failed to connect to MySQL after %d attempts: %v", retryCount, err))
+	}
+}
+
 func init() {
 	var err error
 	retryCount := 5
@@ -49,7 +63,6 @@ func init() {
 	}
 }
 
-// Register handles user registration
 func Register(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -80,7 +93,6 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	log.Printf("User %s registered successfully", creds.Username)
 }
 
-// Login handles user authentication and JWT generation
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -135,7 +147,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf("User %s logged in successfully", creds.Username)
 }
 
-// Check if the error indicates a unique constraint violation
 func isUniqueViolationError(err error) bool {
 	// This will depend on the specific error returned by your database driver
 	// Example for MySQL: error code 1062 indicates a duplicate entry
