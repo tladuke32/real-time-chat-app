@@ -6,11 +6,16 @@ import (
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
 	"log"
 	"net/http"
+	"sync"
 )
 
+var once sync.Once
+
 func main() {
-	// Database setup, consider moving this into a separate setup function or package for better abstraction
-	myhandlers.SetupDB("root:secret@tcp(mysql:3306)/chat_app?timeout=5s")
+
+	once.Do(func() {
+		myhandlers.SetupDB("root:secret@tcp(mysql:3306)/chat_app?timeout=5s")
+	})
 
 	// Setting up the HTTP router
 	r := mux.NewRouter()
@@ -35,6 +40,9 @@ func main() {
 	r.HandleFunc("/groups/create", myhandlers.CreateGroup).Methods("POST")
 	r.HandleFunc("/groups/add_member", myhandlers.AddMemberToGroup).Methods("POST")
 	r.HandleFunc("/groups/send_message", myhandlers.SendMessageToGroup).Methods("POST")
+
+	// Notification handling route
+	r.HandleFunc("/notifications", myhandlers.BroadcastNotificationHandler).Methods("POST")
 
 	// CORS middleware configuration to handle cross-origin requests
 	corsHandler := handlers.CORS(

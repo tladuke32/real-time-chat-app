@@ -65,9 +65,23 @@ func HandleNewMessage(content string, userID int) error {
 	return nil
 }
 
-// BroadcastNotification sends a notification to all connected WebSocket clients
+func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
+	var requestBody struct {
+		Message string `json:"message"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		log.Printf("Error decoding request payload: %v", err)
+		return
+	}
+
+	BroadcastNotification(requestBody.Message)
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Notification broadcasted successfully"))
+}
+
 func BroadcastNotification(msg string) {
-	// Ensure thread safety with a mutex
 	lock.Lock()
 	defer lock.Unlock()
 

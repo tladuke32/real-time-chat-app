@@ -27,7 +27,6 @@ type Claims struct {
 
 var db *sql.DB
 
-// SetupDB initializes the database connection
 func SetupDB(dsn string) {
 	var err error
 	retryCount := 5

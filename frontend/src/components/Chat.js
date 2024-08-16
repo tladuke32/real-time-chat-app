@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
-function Chat({ user }) {  // Pass the user as a prop to the Chat component
+function Chat({ user }) {
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const wsURL = process.env.REACT_APP_API_URL.replace('http', 'ws') + '/ws';
     const [ws, setWs] = useState(null);
+
+    const wsURL = `${process.env.REACT_APP_API_URL.replace('http', 'ws')}/ws`;
 
     // Function to initialize WebSocket connection
     const connectWebSocket = useCallback(() => {
@@ -23,12 +24,13 @@ function Chat({ user }) {  // Pass the user as a prop to the Chat component
             console.error('WebSocket Error:', error);
         };
 
-        socket.onclose = () => {
-            console.log('WebSocket connection closed');
-            // Automatically try to reconnect on unexpected closure
-            setTimeout(() => {
-                connectWebSocket();
-            }, 5000);
+        socket.onclose = (event) => {
+            console.log('WebSocket connection closed', event);
+            if (event.code !== 1000) { // Reconnect only if the close was abnormal
+                setTimeout(() => {
+                    connectWebSocket();
+                }, 5000);
+            }
         };
 
         setWs(socket);
@@ -39,17 +41,18 @@ function Chat({ user }) {  // Pass the user as a prop to the Chat component
         };
     }, [wsURL]);
 
-    // Establish WebSocket connection on component mount and clean up on unmount
+    // Establish WebSocket connection on component mount
     useEffect(() => {
-        return connectWebSocket();
+        const cleanup = connectWebSocket();
+        return cleanup; // Cleanup WebSocket on component unmount
     }, [connectWebSocket]);
 
     // Handler for sending messages
     const handleSubmit = (e) => {
         e.preventDefault();
         if (ws && ws.readyState === WebSocket.OPEN) {
-            // Send the username along with the message
-            ws.send(JSON.stringify({ username: user.username, message }));
+            const messageData = { username: user.username, message }; // Send username with the message
+            ws.send(JSON.stringify(messageData));
             setMessage('');
         } else {
             console.error('WebSocket is not open. Cannot send message.');
@@ -82,4 +85,3 @@ function Chat({ user }) {  // Pass the user as a prop to the Chat component
 }
 
 export default Chat;
-
