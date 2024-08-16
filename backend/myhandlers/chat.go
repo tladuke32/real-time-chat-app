@@ -1,71 +1,89 @@
 package myhandlers
 
 import (
+	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
 )
 
-// Upgrader configures WebSocket upgrader options
+type WebSocketMessage struct {
+	Username string `json:"username"`
+	Message  string `json:"message"`
+}
+
+// Upgrader for handling WebSocket connections
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Implement more secure origin checking for production environments
+		return true // Consider more secure checks for production
 	},
 }
 
-// clients tracks connected WebSocket clients
+// Clients map to keep track of connected WebSocket clients
 var clients = make(map[*websocket.Conn]bool)
-var lock = sync.Mutex{} // Ensures concurrent access to clients map is managed safely
+var lock = sync.Mutex{} // to handle concurrent access to clients map
 
-// WebSocketHandler handles incoming WebSocket connections
+// WebSocketHandler manages all WebSocket connections for notifications and chats
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("Failed to upgrade to WebSocket:", err)
+		log.Println("WebSocket Upgrade error:", err)
 		return
 	}
-	defer func() {
-		removeClient(conn)
-		conn.Close()
-	}()
 
-	// Register the new client
+	// Register client
 	lock.Lock()
 	clients[conn] = true
 	lock.Unlock()
 
-	log.Println("WebSocket client connected.")
-	defer log.Println("WebSocket client disconnected.")
+	log.Println("WebSocket client connected")
+	defer func() {
+		removeClient(conn)
+		log.Println("WebSocket client disconnected")
+	}()
 
 	for {
-		messageType, message, err := conn.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Failed to read message:", err)
+			log.Println("Error reading message:", err)
 			break
 		}
 
-		// Broadcast the received message to all connected clients
-		broadcastMessage(messageType, message)
+		var msg WebSocketMessage
+		if err := json.Unmarshal(message, &msg); err != nil {
+			log.Println("Error unmarshalling message:", err)
+			continue
+		}
+
+		// Broadcast received message to all clients
+		broadcastMessage(msg)
 	}
 }
 
-// broadcastMessage sends the received message to all connected clients
-func broadcastMessage(messageType int, message []byte) {
+// broadcastMessage sends messages to all connected clients
+func broadcastMessage(msg WebSocketMessage) {
 	lock.Lock()
 	defer lock.Unlock()
 
+	message, err := json.Marshal(msg)
+	if err != nil {
+		log.Println("Error marshalling message:", err)
+		return
+	}
+
 	for client := range clients {
-		if err := client.WriteMessage(messageType, message); err != nil {
-			log.Println("Failed to send message:", err)
-			removeClient(client) // Ensures clean up of failed
+		if err := client.WriteMessage(websocket.TextMessage, message); err != nil {
+			log.Println("Error writing message:", err)
+			removeClient(client)
 		}
 	}
 }
 
+// removeClient handles client disconnection and cleanup
 func removeClient(conn *websocket.Conn) {
-	lock.Lock() // Ensure exclusive access to the clients map
+	lock.Lock()
+	defer lock.Unlock()
 	delete(clients, conn)
-	lock.Unlock()
-	conn.Close() // Close the WebSocket connection
+	conn.Close()
 }

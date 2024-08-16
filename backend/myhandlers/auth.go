@@ -27,6 +27,7 @@ type Claims struct {
 
 var db *sql.DB
 
+// SetupDB initializes the database connection
 func SetupDB(dsn string) {
 	var err error
 	retryCount := 5
@@ -45,24 +46,7 @@ func SetupDB(dsn string) {
 	}
 }
 
-func init() {
-	var err error
-	retryCount := 5
-	for retries := retryCount; retries > 0; retries-- {
-		db, err = sql.Open("mysql", "root:secret@tcp(mysql:3306)/chat_app?timeout=5s")
-		if err == nil && db.Ping() == nil {
-			log.Println("Successfully connected to MySQL")
-			break
-		}
-		log.Printf("MySQL connection failed: %v. Retrying in 5 seconds... (%d retries left)", err, retries)
-		time.Sleep(5 * time.Second)
-	}
-
-	if err != nil {
-		panic(fmt.Sprintf("Failed to connect to MySQL after %d attempts: %v", retryCount, err))
-	}
-}
-
+// Register handles user registration
 func Register(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -93,6 +77,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	log.Printf("User %s registered successfully", creds.Username)
 }
 
+// Login handles user authentication and JWT generation
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -136,6 +121,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set the token as an HTTP-only cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:     "token",
 		Value:    tokenString,
@@ -143,12 +129,19 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,                    // Security best practice to prevent JavaScript access
 		SameSite: http.SameSiteStrictMode, // Security best practice
 	})
+
+	// Also return the token in the JSON response
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
+	json.NewEncoder(w).Encode(map[string]string{
+		"token": tokenString,
+	})
+
 	log.Printf("User %s logged in successfully", creds.Username)
 }
 
+// isUniqueViolationError checks if the error is a unique constraint violation
 func isUniqueViolationError(err error) bool {
-	// This will depend on the specific error returned by your database driver
 	// Example for MySQL: error code 1062 indicates a duplicate entry
 	if err != nil && err.Error() != "" && err.Error() == "Error 1062: Duplicate entry" {
 		return true

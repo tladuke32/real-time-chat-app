@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 
-function Chat({ username }) { // Assuming username is passed as a prop to the component
+function Chat({ user }) {  // Pass the user as a prop to the Chat component
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
     const wsURL = process.env.REACT_APP_API_URL.replace('http', 'ws') + '/ws';
@@ -41,16 +41,15 @@ function Chat({ username }) { // Assuming username is passed as a prop to the co
 
     // Establish WebSocket connection on component mount and clean up on unmount
     useEffect(() => {
-        const cleanup = connectWebSocket();
-        return cleanup;
+        return connectWebSocket();
     }, [connectWebSocket]);
 
     // Handler for sending messages
     const handleSubmit = (e) => {
         e.preventDefault();
         if (ws && ws.readyState === WebSocket.OPEN) {
-            const messageToSend = JSON.stringify({ username: username || "Anonymous", message });
-            ws.send(messageToSend);
+            // Send the username along with the message
+            ws.send(JSON.stringify({ username: user.username, message }));
             setMessage('');
         } else {
             console.error('WebSocket is not open. Cannot send message.');
@@ -83,3 +82,4 @@ function Chat({ username }) { // Assuming username is passed as a prop to the co
 }
 
 export default Chat;
+

@@ -27,7 +27,7 @@ function Login({ onLogin }) {
             if (data.token) {
                 localStorage.setItem('token', data.token);
                 console.log('Login successful, token stored');
-                onLogin && onLogin({ username, token: data.token }); // Trigger the onLogin callback with user details
+                onLogin({ username, token: data.token }); // Trigger the onLogin callback with user details
             } else {
                 console.error('Login failed: Token not received');
                 alert('Login failed: Token not received');
