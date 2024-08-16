@@ -7,77 +7,75 @@ import (
 	"sync"
 )
 
-// Upgrader for handling WebSocket connections
+// Upgrader configures WebSocket upgrader options
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Consider more secure checks for production
+		return true // Implement more secure origin checking for production environments
 	},
 }
 
-// Clients map to keep track of connected WebSocket clients
+// clients tracks connected WebSocket clients
 var clients = make(map[*websocket.Conn]bool)
-var lock = sync.Mutex{} // to handle concurrent access to clients map
+var lock = sync.Mutex{} // Ensures concurrent access to clients map is managed safely
 
-// WebSocketHandler manages all WebSocket connections for notifications and chats
+// WebSocketHandler handles incoming WebSocket connections
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("WebSocket Upgrade error:", err)
+		log.Println("Failed to upgrade to WebSocket:", err)
 		return
 	}
-	defer conn.Close()
+	defer func() {
+		removeClient(conn)
+		conn.Close()
+	}()
 
-	// Register client
+	// Register the new client
 	lock.Lock()
 	clients[conn] = true
 	lock.Unlock()
 
-	log.Println("WebSocket client connected")
-	defer log.Println("WebSocket client disconnected")
+	log.Println("WebSocket client connected.")
+	defer log.Println("WebSocket client disconnected.")
 
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Error reading message:", err)
+			log.Println("Failed to read message:", err)
 			break
 		}
 
-		// Broadcast received message to all clients
+		// Broadcast the received message to all connected clients
 		broadcastMessage(messageType, message)
 	}
 }
 
-// broadcastMessage sends messages to all connected clients
+// broadcastMessage sends the received message to all connected clients
 func broadcastMessage(messageType int, message []byte) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	for client := range clients {
 		if err := client.WriteMessage(messageType, message); err != nil {
-			log.Println("Error writing message:", err)
-			client.Close()
-			delete(clients, client)
+			log.Println("Failed to send message:", err)
+			removeClient(client) // Ensures clean up of failed
 		}
 	}
 }
 
-// Cleanup on client disconnect
-func removeClient(conn *websocket.Conn) {
-	lock.Lock()
-	delete(clients, conn)
-	lock.Unlock()
-	conn.Close()
-}
-
-func BroadcastNotification(msg string) {
+func BroadcastNotification(message string) {
 	lock.Lock()
 	defer lock.Unlock()
 
+	// Prepare the message to send
+	msg := []byte(message)
+
+	// Iterate over all clients and send the message
 	for client := range clients {
-		if err := client.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-			log.Println("Error broadcasting notification:", err)
-			client.Close()
-			delete(clients, client)
+		if err := client.WriteMessage(websocket.TextMessage, msg); err != nil {
+			log.Printf("Failed to send notification to a client: %v", err)
+			client.Close()          // Close the connection on error
+			delete(clients, client) // Remove the client from the map
 		}
 	}
 }

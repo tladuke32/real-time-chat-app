@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function Login() {
+function Login({ onLogin }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const apiURL = process.env.REACT_APP_API_URL;
@@ -27,7 +27,7 @@ function Login() {
             if (data.token) {
                 localStorage.setItem('token', data.token);
                 console.log('Login successful, token stored');
-                // Redirect to another page or update UI accordingly
+                onLogin && onLogin({ username, token: data.token }); // Trigger the onLogin callback with user details
             } else {
                 console.error('Login failed: Token not received');
                 alert('Login failed: Token not received');
@@ -39,22 +39,32 @@ function Login() {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
-                required
-            />
-            <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-            />
-            <button type="submit">Login</button>
+        <form onSubmit={handleSubmit} className="mt-3">
+            <div className="form-group">
+                <label htmlFor="username">Username</label>
+                <input
+                    type="text"
+                    className="form-control"
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Enter username"
+                    required
+                />
+            </div>
+            <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input
+                    type="password"
+                    className="form-control"
+                    id="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                />
+            </div>
+            <button type="submit" className="btn btn-primary">Login</button>
         </form>
     );
 }

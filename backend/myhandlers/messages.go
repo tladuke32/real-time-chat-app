@@ -15,6 +15,29 @@ type Message struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type NewMessageData struct {
+	Content string `json:"content"`
+	UserID  int    `json:"userId"`
+}
+
+func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
+	var data NewMessageData
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	err := HandleNewMessage(data.Content, data.UserID)
+	if err != nil {
+		log.Printf("Error handling new message: %v", err)
+		http.Error(w, "Error processing message", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Message created successfully"))
+}
+
 func SendMessage(w http.ResponseWriter, r *http.Request) {
 	var msg Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {

@@ -15,7 +15,8 @@ function Chat() {
         };
 
         socket.onmessage = (event) => {
-            setMessages(prevMessages => [...prevMessages, event.data]);
+            const data = JSON.parse(event.data); // Assuming message data comes in JSON format
+            setMessages(prevMessages => [...prevMessages, data]);
         };
 
         socket.onerror = (error) => {
@@ -32,25 +33,22 @@ function Chat() {
 
         setWs(socket);
         return () => {
-            socket.close();
+            if (socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
         };
     }, [wsURL]);
 
     // Establish WebSocket connection on component mount and clean up on unmount
     useEffect(() => {
-        const cleanup = connectWebSocket();
-
-        return () => {
-            cleanup();
-        };
+        return connectWebSocket();
     }, [connectWebSocket]);
 
     // Handler for sending messages
     const handleSubmit = (e) => {
         e.preventDefault();
-
         if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(message);
+            ws.send(JSON.stringify({ username: "Username", message })); // Add username when sending messages
             setMessage('');
         } else {
             console.error('WebSocket is not open. Cannot send message.');
@@ -58,23 +56,29 @@ function Chat() {
     };
 
     return (
-        <div>
-            <div>
+        <div className="chat-container">
+            <h2>Chat</h2>
+            <div className="messages">
                 {messages.map((msg, idx) => (
-                    <div key={idx}>{msg}</div>
+                    <div key={idx} className="message">
+                        <strong>{msg.username || "Anonymous"}:</strong> {msg.message}
+                    </div>
                 ))}
             </div>
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} className="message-form">
                 <input
                     type="text"
+                    className="form-control"
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder="Enter message"
+                    required
                 />
-                <button type="submit">Send</button>
+                <button type="submit" className="btn btn-primary">Send</button>
             </form>
         </div>
     );
 }
 
 export default Chat;
+

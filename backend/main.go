@@ -29,6 +29,7 @@ func main() {
 	// Message sending and retrieval routes
 	r.HandleFunc("/send", myhandlers.SendMessage).Methods("POST")
 	r.HandleFunc("/messages", myhandlers.GetMessages).Methods("GET")
+	r.HandleFunc("/messages", myhandlers.HandleNewMessageHTTP).Methods("POST")
 
 	// Group management routes
 	r.HandleFunc("/groups/create", myhandlers.CreateGroup).Methods("POST")
