@@ -63,19 +63,9 @@ func broadcastMessage(messageType int, message []byte) {
 	}
 }
 
-func BroadcastNotification(message string) {
-	lock.Lock()
-	defer lock.Unlock()
-
-	// Prepare the message to send
-	msg := []byte(message)
-
-	// Iterate over all clients and send the message
-	for client := range clients {
-		if err := client.WriteMessage(websocket.TextMessage, msg); err != nil {
-			log.Printf("Failed to send notification to a client: %v", err)
-			client.Close()          // Close the connection on error
-			delete(clients, client) // Remove the client from the map
-		}
-	}
+func removeClient(conn *websocket.Conn) {
+	lock.Lock() // Ensure exclusive access to the clients map
+	delete(clients, conn)
+	lock.Unlock()
+	conn.Close() // Close the WebSocket connection
 }

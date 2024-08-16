@@ -2,7 +2,9 @@ package myhandlers
 
 import (
 	"encoding/json"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"time"
@@ -36,6 +38,46 @@ func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Message created successfully"))
+}
+
+func HandleNewMessage(content string, userID int) error {
+	// Prepare SQL statement for inserting the new message
+	query := `INSERT INTO messages (content, user_id) VALUES (?, ?)`
+	result, err := db.Exec(query, content, userID)
+	if err != nil {
+		log.Printf("Error inserting new message: %v", err)
+		return err
+	}
+
+	// Retrieve the last inserted ID to confirm the message was saved and for logging purposes
+	messageID, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("Error retrieving last insert ID after inserting message: %v", err)
+		return err
+	}
+
+	log.Printf("Inserted new message with ID %d for user %d", messageID, userID)
+
+	// Optional: Broadcast the new message to all connected clients
+	message := fmt.Sprintf("New message from user %d: %s", userID, content)
+	BroadcastNotification(message)
+
+	return nil
+}
+
+// BroadcastNotification sends a notification to all connected WebSocket clients
+func BroadcastNotification(msg string) {
+	// Ensure thread safety with a mutex
+	lock.Lock()
+	defer lock.Unlock()
+
+	for client := range clients {
+		if err := client.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			log.Printf("Error broadcasting message to WebSocket client: %v", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {
