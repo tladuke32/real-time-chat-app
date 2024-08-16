@@ -2,7 +2,6 @@ package myhandlers
 
 import (
 	"encoding/json"
-	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/websocket"
 	"log"
@@ -13,13 +12,15 @@ import (
 type Message struct {
 	ID        int       `json:"id"`
 	UserID    int       `json:"user_id"`
+	Username  string    `json:"username"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 type NewMessageData struct {
-	Content string `json:"content"`
-	UserID  int    `json:"userId"`
+	Content  string `json:"content"`
+	UserID   int    `json:"userId"`
+	Username string `json:"username"`
 }
 
 func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +30,7 @@ func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := HandleNewMessage(data.Content, data.UserID)
+	err := HandleNewMessage(data.Content, data.UserID, data.Username)
 	if err != nil {
 		log.Printf("Error handling new message: %v", err)
 		http.Error(w, "Error processing message", http.StatusInternalServerError)
@@ -40,10 +41,10 @@ func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Message created successfully"))
 }
 
-func HandleNewMessage(content string, userID int) error {
+func HandleNewMessage(content string, userID int, username string) error {
 	// Prepare SQL statement for inserting the new message
-	query := `INSERT INTO messages (content, user_id) VALUES (?, ?)`
-	result, err := db.Exec(query, content, userID)
+	query := `INSERT INTO messages (content, user_id, username) VALUES (?, ?, ?)`
+	result, err := db.Exec(query, content, userID, username)
 	if err != nil {
 		log.Printf("Error inserting new message: %v", err)
 		return err
@@ -58,16 +59,41 @@ func HandleNewMessage(content string, userID int) error {
 
 	log.Printf("Inserted new message with ID %d for user %d", messageID, userID)
 
-	// Optional: Broadcast the new message to all connected clients
-	message := fmt.Sprintf("New message from user %d: %s", userID, content)
+	// Broadcast the new message to all connected clients
+	message := Message{
+		ID:        int(messageID),
+		UserID:    userID,
+		Username:  username,
+		Content:   content,
+		CreatedAt: time.Now(),
+	}
 	BroadcastNotification(message)
 
 	return nil
 }
 
+func BroadcastNotification(msg Message) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	messageBytes, _ := json.Marshal(msg) // Convert the message to JSON
+
+	for client := range clients {
+		if err := client.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
+			log.Printf("Error broadcasting message to WebSocket client: %v", err)
+			client.Close()
+			delete(clients, client)
+		}
+	}
+}
+
+// Other functions remain the same...
+
 func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
-		Message string `json:"message"`
+		Content  string `json:"message"` // Content of the message
+		UserID   int    `json:"userId"`  // ID of the user sending the message
+		Username string `json:"username"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
@@ -76,22 +102,16 @@ func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	BroadcastNotification(requestBody.Message)
+	message := Message{
+		Content:   requestBody.Content,
+		UserID:    requestBody.UserID,
+		Username:  requestBody.Username,
+		CreatedAt: time.Now(),
+	}
+
+	BroadcastNotification(message)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Notification broadcasted successfully"))
-}
-
-func BroadcastNotification(msg string) {
-	lock.Lock()
-	defer lock.Unlock()
-
-	for client := range clients {
-		if err := client.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
-			log.Printf("Error broadcasting message to WebSocket client: %v", err)
-			client.Close()
-			delete(clients, client)
-		}
-	}
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {
