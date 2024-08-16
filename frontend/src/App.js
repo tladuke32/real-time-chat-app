@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
-import Notifications from './components/Notifications'; // Make sure to import the Notifications component
+import Notifications from './components/Notifications';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
     const [user, setUser] = useState(null); // State to manage user authentication
 
     const handleLogin = (userData) => {
-        setUser(userData); // Assume userData contains user details on successful login
+        setUser(userData); // Set user data on successful login
         console.log('User logged in:', userData);
     };
 
@@ -21,7 +21,7 @@ function App() {
     return (
         <div className="App container mt-3">
             <header className="mb-4">
-                <h1>Welcome to Chat App</h1>
+                <h1>Welcome to the Chat App</h1>
                 {user && (
                     <div>
                         Logged in as: <strong>{user.username}</strong>
@@ -32,7 +32,7 @@ function App() {
             {user ? (
                 <>
                     <Notifications user={user} />
-                    <Chat user={user} onLogout={handleLogout} />
+                    <Chat user={user} />
                 </>
             ) : (
                 <div className="authentication">
