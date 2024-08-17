@@ -18,6 +18,10 @@ function App() {
         console.log('User logged out');
     };
 
+    const switchView = (view) => {
+        setCurrentView(view);
+    };
+
     return (
         <div className="App container mt-3">
             <header className="mb-4">
@@ -26,13 +30,16 @@ function App() {
                     <div>
                         Logged in as: <strong>{user.username}</strong>
                         <button onClick={handleLogout} className="btn btn-danger ml-2">Logout</button>
+                        <button onClick={() => switchView('chat')} className="btn btn-primary ml-2">Chat</button>
+                        <button onClick={() => switchView('groups')} className="btn btn-secondary ml-2">Groups</button>
                     </div>
                 )}
             </header>
             {user ? (
                 <>
                     <Notifications user={user} />
-                    <Chat user={user} />
+                    {currentView === 'chat' && <Chat user={user} />}
+                    {currentView === 'groups' && <GroupManagement user={user} />}
                 </>
             ) : (
                 <div className="authentication">

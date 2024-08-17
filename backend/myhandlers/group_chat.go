@@ -83,3 +83,40 @@ func SendMessageToGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(message)
 }
+
+// FetchGroupMessages retrieves all messages for a specific group
+func FetchGroupMessages(w http.ResponseWriter, r *http.Request) {
+	groupID := r.URL.Query().Get("group_id")
+	if groupID == "" {
+		http.Error(w, "Group ID is required", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := db.Query("SELECT group_id, user_id, content, created_at FROM group_messages WHERE group_id = ?", groupID)
+	if err != nil {
+		http.Error(w, "Failed to fetch group messages", http.StatusInternalServerError)
+		log.Printf("Error fetching group messages: %v", err)
+		return
+	}
+	defer rows.Close()
+
+	var messages []GroupMessage
+	for rows.Next() {
+		var message GroupMessage
+		if err := rows.Scan(&message.GroupID, &message.UserID, &message.Content, &message.CreatedAt); err != nil {
+			http.Error(w, "Failed to scan group message", http.StatusInternalServerError)
+			log.Printf("Error scanning group message: %v", err)
+			return
+		}
+		messages = append(messages, message)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, "Error during rows iteration", http.StatusInternalServerError)
+		log.Printf("Error during rows iteration: %v", err)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(messages)
+}

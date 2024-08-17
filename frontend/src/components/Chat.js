@@ -63,7 +63,9 @@ function Chat({ user }) {
         <div className="chat-container">
             <h2>Chat</h2>
             <div className="messages">
-                {messages.map((msg, idx) => (
+                {messages
+                    .filter(msg => msg.username !== user.username) // Filter out messages sent by the current user
+                    .map((msg, idx) => (
                     <div key={idx} className="message">
                         <strong>{msg.username || "Anonymous"}:</strong> {msg.message}
                     </div>
