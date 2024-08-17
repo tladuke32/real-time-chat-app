@@ -3,10 +3,13 @@ import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
 import Notifications from './components/Notifications';
+import GroupManagement from './components/GroupManagement';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
     const [user, setUser] = useState(null); // State to manage user authentication
+
+    const [currentView, setCurrentView] = useState('chat'); // Example of defining currentView state
 
     const handleLogin = (userData) => {
         setUser(userData); // Set user data on successful login
