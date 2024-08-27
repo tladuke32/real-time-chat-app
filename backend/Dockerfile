@@ -35,4 +35,4 @@ ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.s
 RUN chmod +x /usr/local/bin/wait-for-it.sh
 
 # Run the wait-for-it script before starting the main application
-CMD ["wait-for-it.sh", "mysql:3306", "--", "./main"]
+CMD ["wait-for-it.sh", "mysql:3306", "-t", "60", "--", "./main"]
