@@ -11,6 +11,9 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
+# Copy the .env file
+COPY ../.env .env
+
 # Build the application
 RUN go build -o main .
 
@@ -18,8 +21,18 @@ RUN go build -o main .
 FROM alpine:latest
 WORKDIR /app/
 
+# Install dependencies required for wait-for-it
+RUN apk add --no-cache bash
+
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
+COPY --from=builder /app/.env .env
 
-# Run the binary
-CMD ["./main"]
+# Download the wait-for-it script
+ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /usr/local/bin/wait-for-it.sh
+
+# Make the wait-for-it script executable
+RUN chmod +x /usr/local/bin/wait-for-it.sh
+
+# Run the wait-for-it script before starting the main application
+CMD ["wait-for-it.sh", "mysql:3306", "--", "./main"]

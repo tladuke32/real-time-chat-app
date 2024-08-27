@@ -3,19 +3,41 @@ package main
 import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 )
 
 var once sync.Once
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+
+	// Setup database connection using environment variables
+	done := make(chan bool)
 
 	once.Do(func() {
-		myhandlers.SetupDB("root:secret@tcp(mysql:3306)/chat_app?timeout=5s")
+		go func() {
+			dbUser := os.Getenv("MYSQL_USER")
+			dbPassword := os.Getenv("MYSQL_PASSWORD")
+			dbHost := os.Getenv("MYSQL_HOST")
+			dbPort := os.Getenv("MYSQL_PORT")
+			dbName := os.Getenv("MYSQL_DATABASE")
+			dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?timeout=5s"
+			myhandlers.InitDB(dsn, done)
+		}()
 	})
+
+	if !<-done {
+		log.Fatal("MySQL connection could not be established. Exiting.")
+	}
 
 	// Setting up the HTTP router
 	r := mux.NewRouter()

@@ -28,7 +28,10 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching user profile: %v", err)
 		return
 	}
-	json.NewEncoder(w).Encode(user)
+	err = json.NewEncoder(w).Encode(user)
+	if err != nil {
+		return
+	}
 }
 
 // UpdateUserProfile updates a user's profile information
