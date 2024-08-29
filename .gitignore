@@ -30,4 +30,4 @@ Thumbs.db
 
 schema.sql
 
-docker-compose.yml
+node_modules

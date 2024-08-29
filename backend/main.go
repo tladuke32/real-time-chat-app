@@ -68,12 +68,12 @@ func main() {
 
 	// CORS middleware configuration to handle cross-origin requests
 	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{"http://localhost:3000"}), // Adjust in production to match your deployment
+		handlers.AllowedOrigins([]string{"http://localhost"}), // Adjust in production to match your deployment
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "application/json"}),
 	)(r)
 
 	// Start the HTTP server on port 8080
-	log.Println("Starting server on :8080")
-	log.Fatal(http.ListenAndServe(":8080", corsHandler))
+	log.Println("Starting server on :80")
+	log.Fatal(http.ListenAndServe(":80", corsHandler))
 }
