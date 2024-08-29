@@ -3,6 +3,7 @@ package myhandlers
 import (
 	"encoding/json"
 	"github.com/go-sql-driver/mysql"
+	"github.com/tladuke32/real-time-chat-app/models"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
@@ -27,7 +28,12 @@ func Register(w http.ResponseWriter, r *http.Request) {
 
 	// Insert the user into the database
 	db := GetDB()
-	_, err = db.Exec("INSERT INTO users (username, password) VALUES (?, ?)", creds.Username, string(hashedPassword))
+	user := models.User{
+		Username: creds.Username,
+		Password: string(hashedPassword),
+	}
+	err = db.Create(&user).Error
+
 	if err != nil {
 		if isUniqueViolationError(err) {
 			http.Error(w, "Username already taken", http.StatusConflict)

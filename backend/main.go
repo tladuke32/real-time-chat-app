@@ -38,6 +38,8 @@ func main() {
 		log.Fatal("MySQL connection could not be established. Exiting.")
 	}
 
+	myhandlers.MigrateDB(myhandlers.GetDB())
+
 	// Setting up the HTTP router
 	r := mux.NewRouter()
 

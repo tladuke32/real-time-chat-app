@@ -4,18 +4,11 @@ import (
 	"encoding/json"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/websocket"
+	"github.com/tladuke32/real-time-chat-app/models"
 	"log"
 	"net/http"
 	"time"
 )
-
-type Message struct {
-	ID        int       `json:"id"`
-	UserID    int       `json:"user_id"`
-	Username  string    `json:"username"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 type NewMessageData struct {
 	Content  string `json:"content"`
@@ -42,37 +35,27 @@ func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleNewMessage(content string, userID int, username string) error {
-	// Prepare SQL statement for inserting the new message
-	query := `INSERT INTO messages (content, user_id, username) VALUES (?, ?, ?)`
-	result, err := db.Exec(query, content, userID, username)
-	if err != nil {
+	// Use GORM to insert the new message
+	message := models.Message{
+		UserID:   uint(userID),
+		Username: username,
+		Content:  content,
+	}
+
+	if err := db.Create(&message).Error; err != nil {
 		log.Printf("Error inserting new message: %v", err)
 		return err
 	}
 
-	// Retrieve the last inserted ID to confirm the message was saved and for logging purposes
-	messageID, err := result.LastInsertId()
-	if err != nil {
-		log.Printf("Error retrieving last insert ID after inserting message: %v", err)
-		return err
-	}
-
-	log.Printf("Inserted new message with ID %d for user %d", messageID, userID)
+	log.Printf("Inserted new message with ID %d for user %d", message.ID, userID)
 
 	// Broadcast the new message to all connected clients
-	message := Message{
-		ID:        int(messageID),
-		UserID:    userID,
-		Username:  username,
-		Content:   content,
-		CreatedAt: time.Now(),
-	}
 	BroadcastNotification(message)
 
 	return nil
 }
 
-func BroadcastNotification(msg Message) {
+func BroadcastNotification(msg models.Message) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -87,8 +70,6 @@ func BroadcastNotification(msg Message) {
 	}
 }
 
-// Other functions remain the same...
-
 func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		Content  string `json:"message"` // Content of the message
@@ -102,11 +83,10 @@ func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message := Message{
-		Content:   requestBody.Content,
-		UserID:    requestBody.UserID,
-		Username:  requestBody.Username,
-		CreatedAt: time.Now(),
+	message := models.Message{
+		Content:  requestBody.Content,
+		UserID:   uint(requestBody.UserID),
+		Username: requestBody.Username,
 	}
 
 	BroadcastNotification(message)
@@ -115,29 +95,20 @@ func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {
-	var msg Message
+	var msg models.Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		log.Printf("Error decoding message: %v", err)
 		return
 	}
 
-	query := `INSERT INTO messages (user_id, content) VALUES (?, ?)`
-	result, err := db.Exec(query, msg.UserID, msg.Content)
-	if err != nil {
+	// Use GORM to insert the message
+	if err := db.Create(&msg).Error; err != nil {
 		http.Error(w, "Error inserting message", http.StatusInternalServerError)
 		log.Printf("Error inserting message: %v", err)
 		return
 	}
 
-	insertedID, err := result.LastInsertId()
-	if err != nil {
-		http.Error(w, "Error retrieving last insert ID", http.StatusInternalServerError)
-		log.Printf("Error getting last insert ID: %v", err)
-		return
-	}
-
-	msg.ID = int(insertedID)
 	msg.CreatedAt = time.Now()
 
 	w.WriteHeader(http.StatusCreated)
@@ -148,28 +119,12 @@ func SendMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetMessages(w http.ResponseWriter, r *http.Request) {
-	rows, err := db.Query(`SELECT id, user_id, content, created_at FROM messages ORDER BY created_at DESC`)
-	if err != nil {
+	var messages []models.Message
+
+	// Use GORM to retrieve messages
+	if err := db.Order("created_at DESC").Find(&messages).Error; err != nil {
 		http.Error(w, "Error retrieving messages", http.StatusInternalServerError)
 		log.Printf("Error retrieving messages: %v", err)
-		return
-	}
-	defer rows.Close()
-
-	var messages []Message
-	for rows.Next() {
-		var msg Message
-		if err := rows.Scan(&msg.ID, &msg.UserID, &msg.Content, &msg.CreatedAt); err != nil {
-			http.Error(w, "Error scanning message", http.StatusInternalServerError)
-			log.Printf("Error scanning message: %v", err)
-			return
-		}
-		messages = append(messages, msg)
-	}
-
-	if err = rows.Err(); err != nil {
-		http.Error(w, "Error during rows iteration", http.StatusInternalServerError)
-		log.Printf("Error during rows iteration: %v", err)
 		return
 	}
 

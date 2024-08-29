@@ -3,6 +3,7 @@ package myhandlers
 import (
 	"encoding/json"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/tladuke32/real-time-chat-app/models"
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
@@ -23,6 +24,7 @@ type Claims struct {
 }
 
 // Login handles user authentication and JWT generation
+// Login handles user authentication and JWT generation
 func Login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
@@ -32,7 +34,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var storedPassword string
-	err := db.QueryRow("SELECT password FROM users WHERE username=?", creds.Username).Scan(&storedPassword)
+	err := db.Model(&models.User{}).Where("username = ?", creds.Username).Pluck("password", &storedPassword).Error
 	if err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		log.Printf("Invalid login attempt for username: %s", creds.Username)
@@ -72,11 +74,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,          // Prevents CSRF
 	})
 
-	// Optionally return the token in the response body
+	// Return the token in the response body along with a message
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Login successful",
+		"token":   tokenString,
 	})
 
 	log.Printf("User %s logged in successfully", creds.Username)
