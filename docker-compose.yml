@@ -2,18 +2,17 @@ services:
   mysql:
     image: mariadb:10
     container_name: mysql.chatapp.internal
-    restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-chatpasswordsecret}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-chat_app}
-      MYSQL_USER: ${MYSQL_USER:-chatuser}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chatpasswordstrongerthanstrongbutnottoostrong}
+      MYSQL_ROOT_PASSWORD: chatpasswordsecret
+      MYSQL_DATABASE: chat_app
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpasswordstrongerthanstrongbutnottoostrong
     volumes:
       - db-data:/var/lib/mysql
     networks:
       - chat-network
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -pchatpasswordsecret"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,14 +20,15 @@ services:
   backend:
     build: ./backend
     container_name: backend.chatapp.internal
+    ports:
+      - "8080:8080"
     environment:
-      - MYSQL_USER=${MYSQL_USER:-chatuser}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-chatpasswordstrongerthanstrongbutnottoostrong}
-      - MYSQL_HOST=${MYSQL_HOST:-mysql.chatapp.internal}
-      - MYSQL_PORT=${MYSQL_PORT:-3306}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-chat_app}
-      - JWT_SECRET=${JWT_SECRET:-chatpasswordstrongerthanstrongbutnottoostrong}
-      - ENV=${ENV:-production}
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpasswordstrongerthanstrongbutnottoostrong
+      MYSQL_HOST: mysql.chatapp.internal
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: chat_app
+      JWT_SECRET: chatpasswordstrongerthanstrongbutnottoostrong
     depends_on:
       mysql:
         condition: service_healthy
@@ -43,10 +43,9 @@ services:
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=http://backend.chatapp.internal
+      REACT_APP_API_URL: http://localhost:8080
     networks:
       - chat-network
-
 
 volumes:
   db-data:

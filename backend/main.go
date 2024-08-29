@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
 	"log"
 	"net/http"
@@ -15,10 +14,10 @@ var once sync.Once
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+	//err := godotenv.Load()
+	//if err != nil {
+	//	log.Fatalf("Error loading .env file: %v", err)
+	//}
 
 	// Setup database connection using environment variables
 	done := make(chan bool)
@@ -74,6 +73,6 @@ func main() {
 	)(r)
 
 	// Start the HTTP server on port 8080
-	log.Println("Starting server on :80")
-	log.Fatal(http.ListenAndServe(":80", corsHandler))
+	log.Println("Starting server on :8080")
+	log.Fatal(http.ListenAndServe(":8080", corsHandler))
 }
