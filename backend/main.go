@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/joho/godotenv"
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
 	"log"
 	"net/http"
@@ -15,10 +14,10 @@ var once sync.Once
 
 func main() {
 	// Load environment variables from .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+	//err := godotenv.Load()
+	//if err != nil {
+	//	log.Fatalf("Error loading .env file: %v", err)
+	//}
 
 	// Setup database connection using environment variables
 	done := make(chan bool)
@@ -38,6 +37,8 @@ func main() {
 	if !<-done {
 		log.Fatal("MySQL connection could not be established. Exiting.")
 	}
+
+	myhandlers.MigrateDB(myhandlers.GetDB())
 
 	// Setting up the HTTP router
 	r := mux.NewRouter()
@@ -68,7 +69,7 @@ func main() {
 
 	// CORS middleware configuration to handle cross-origin requests
 	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{"http://localhost:3000"}), // Adjust in production to match your deployment
+		handlers.AllowedOrigins([]string{"http://localhost"}), // Adjust in production to match your deployment
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "application/json"}),
 	)(r)

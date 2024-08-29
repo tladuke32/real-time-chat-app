@@ -11,9 +11,6 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-# Copy the .env file
-COPY ../.env .env
-
 # Build the application
 RUN go build -o main .
 
@@ -26,7 +23,6 @@ RUN apk add --no-cache bash
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
-COPY --from=builder /app/.env .env
 
 # Download the wait-for-it script
 ADD https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh /usr/local/bin/wait-for-it.sh

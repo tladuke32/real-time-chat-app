@@ -1,26 +1,22 @@
 package myhandlers
 
 import (
-	"database/sql"
 	"encoding/json"
+	"errors"
+	"github.com/tladuke32/real-time-chat-app/models"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 )
 
-// User represents a user's profile
-type User struct {
-	ID        int    `json:"id"`
-	Username  string `json:"username"`
-	CreatedAt string `json:"created_at"` // Depending on your date handling, this might need to be time.Time
-}
-
-// GetUserProfile fetches the profile for a user
+// GetUserProfile retrieves a user's profile by username
 func GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
-	var user User
-	err := db.QueryRow("SELECT id, username, created_at FROM users WHERE username = ?", username).Scan(&user.ID, &user.Username, &user.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
+	var user models.User
+
+	// Use GORM to find the user by username
+	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			http.NotFound(w, r)
 			return
 		}
@@ -28,24 +24,29 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error fetching user profile: %v", err)
 		return
 	}
-	err = json.NewEncoder(w).Encode(user)
-	if err != nil {
+
+	// Encode the user profile into JSON and send it in the response
+	if err := json.NewEncoder(w).Encode(user); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		log.Printf("Error encoding user profile response: %v", err)
 		return
 	}
 }
 
 // UpdateUserProfile updates a user's profile information
 func UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
-	var user User
+	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)
 		return
 	}
-	_, err := db.Exec("UPDATE users SET username = ? WHERE id = ?", user.Username, user.ID)
-	if err != nil {
+
+	// Use GORM to update the user's profile
+	if err := db.Model(&user).Where("id = ?", user.ID).Updates(models.User{Username: user.Username}).Error; err != nil {
 		http.Error(w, "Failed to update user", http.StatusInternalServerError)
 		log.Printf("Error updating user profile: %v", err)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 }

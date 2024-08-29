@@ -1,39 +1,34 @@
-version: '3.8'
-
 services:
   mysql:
-    image: mysql:8.0
-    container_name: chat-app-mysql
-    restart: always
+    image: mariadb:10
+    container_name: mysql.chatapp.internal
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-chatpasswordsecret}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-chat_app}
-      MYSQL_USER: ${MYSQL_USER:-chatuser}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-chatpasswordstrongerthanstrongbutnottoostrong}
+      MYSQL_ROOT_PASSWORD: chatpasswordsecret
+      MYSQL_DATABASE: chat_app
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpasswordstrongerthanstrongbutnottoostrong
     volumes:
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    ports:
-      - "3306:3306"
+      - db-data:/var/lib/mysql
     networks:
       - chat-network
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$MYSQL_ROOT_PASSWORD"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -pchatpasswordsecret"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   backend:
     build: ./backend
+    container_name: backend.chatapp.internal
     ports:
       - "8080:8080"
     environment:
-      - MYSQL_USER=${MYSQL_USER:-chatuser}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-chatpasswordstrongerthanstrongbutnottoostrong}
-      - MYSQL_HOST=${MYSQL_HOST:-mysql}
-      - MYSQL_PORT=${MYSQL_PORT:-3306}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-chat_app}
-      - JWT_SECRET=${JWT_SECRET:-chatpasswordstrongerthanstrongbutnottoostrong}
-      - ENV=${ENV:-production}
+      MYSQL_USER: chatuser
+      MYSQL_PASSWORD: chatpasswordstrongerthanstrongbutnottoostrong
+      MYSQL_HOST: mysql.chatapp.internal
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: chat_app
+      JWT_SECRET: chatpasswordstrongerthanstrongbutnottoostrong
     depends_on:
       mysql:
         condition: service_healthy
@@ -42,14 +37,23 @@ services:
 
   frontend:
     build: ./frontend
+    container_name: frontend.chatapp.internal
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - backend
     environment:
-      - REACT_APP_API_URL=http://backend:8080
+      REACT_APP_API_URL: http://localhost:8080
     networks:
       - chat-network
+
+volumes:
+  db-data:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./data
+      o: bind
 
 networks:
   chat-network:
