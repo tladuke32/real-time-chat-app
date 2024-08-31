@@ -2,44 +2,51 @@ package myhandlers
 
 import (
 	"encoding/json"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/websocket"
 	"github.com/tladuke32/real-time-chat-app/models"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 )
 
+var	lock    sync.Mutex
+
 type NewMessageData struct {
-	Content  string `json:"content"`
-	UserID   int    `json:"userId"`
-	Username string `json:"username"`
+	Content  string `json:"content" validate:"required"`
+	UserID   int    `json:"userId" validate:"required"`
+	Username string `json:"username" validate:"required"`
 }
 
 func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 	var data NewMessageData
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request body"})
 		return
 	}
 
-	err := HandleNewMessage(data.Content, data.UserID, data.Username)
-	if err != nil {
+	// Validate data
+	if err := validate.Struct(data); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Validation failed", Data: err.Error()})
+		return
+	}
+
+	// Process and broadcast the new message
+	if err := HandleNewMessage(data.Content, data.UserID, data.Username); err != nil {
 		log.Printf("Error handling new message: %v", err)
-		http.Error(w, "Error processing message", http.StatusInternalServerError)
+		respondWithJSON(w, http.StatusInternalServerError, Response{Status: http.StatusInternalServerError, Message: "Error processing message"})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Message created successfully"))
+	respondWithJSON(w, http.StatusCreated, Response{Status: http.StatusCreated, Message: "Message created successfully"})
 }
 
 func HandleNewMessage(content string, userID int, username string) error {
-	// Use GORM to insert the new message
+	// Insert the new message into the database
 	message := models.Message{
-		UserID:   uint(userID),
-		Username: username,
-		Content:  content,
+		UserID:    uint(userID),
+		Username:  username,
+		Content:   content,
 	}
 
 	if err := db.Create(&message).Error; err != nil {
@@ -56,81 +63,56 @@ func HandleNewMessage(content string, userID int, username string) error {
 }
 
 func BroadcastNotification(msg models.Message) {
-	lock.Lock()
-	defer lock.Unlock()
-
 	messageBytes, _ := json.Marshal(msg) // Convert the message to JSON
 
-	for client := range clients {
+	clients.Range(func(key, value interface{}) bool {
+		client, ok := key.(*websocket.Conn)
+		if !ok {
+			return true // Continue to next client
+		}
 		if err := client.WriteMessage(websocket.TextMessage, messageBytes); err != nil {
 			log.Printf("Error broadcasting message to WebSocket client: %v", err)
 			client.Close()
-			delete(clients, client)
+			clients.Delete(client)
 		}
-	}
-}
-
-func BroadcastNotificationHandler(w http.ResponseWriter, r *http.Request) {
-	var requestBody struct {
-		Content  string `json:"message"` // Content of the message
-		UserID   int    `json:"userId"`  // ID of the user sending the message
-		Username string `json:"username"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
-		log.Printf("Error decoding request payload: %v", err)
-		return
-	}
-
-	message := models.Message{
-		Content:  requestBody.Content,
-		UserID:   uint(requestBody.UserID),
-		Username: requestBody.Username,
-	}
-
-	BroadcastNotification(message)
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Notification broadcasted successfully"))
+		return true
+	})
 }
 
 func SendMessage(w http.ResponseWriter, r *http.Request) {
 	var msg models.Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request payload"})
 		log.Printf("Error decoding message: %v", err)
 		return
 	}
 
-	// Use GORM to insert the message
+	// Validate message data
+	if err := validate.Struct(msg); err != nil {
+		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Validation failed", Data: err.Error()})
+		return
+	}
+
+	// Insert the message into the database
+	msg.CreatedAt = time.Now()
 	if err := db.Create(&msg).Error; err != nil {
-		http.Error(w, "Error inserting message", http.StatusInternalServerError)
+		respondWithJSON(w, http.StatusInternalServerError, Response{Status: http.StatusInternalServerError, Message: "Error inserting message"})
 		log.Printf("Error inserting message: %v", err)
 		return
 	}
 
-	msg.CreatedAt = time.Now()
-
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(msg); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		log.Printf("Error encoding response: %v", err)
-	}
+	respondWithJSON(w, http.StatusCreated, Response{Status: http.StatusCreated, Message: "Message sent successfully", Data: msg})
 }
 
 func GetMessages(w http.ResponseWriter, r *http.Request) {
 	var messages []models.Message
 
-	// Use GORM to retrieve messages
+	// Retrieve messages from the database
 	if err := db.Order("created_at DESC").Find(&messages).Error; err != nil {
-		http.Error(w, "Error retrieving messages", http.StatusInternalServerError)
+		respondWithJSON(w, http.StatusInternalServerError, Response{Status: http.StatusInternalServerError, Message: "Error retrieving messages"})
 		log.Printf("Error retrieving messages: %v", err)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(messages); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-		log.Printf("Error encoding response: %v", err)
-	}
+	respondWithJSON(w, http.StatusOK, Response{Status: http.StatusOK, Message: "Messages retrieved successfully", Data: messages})
 }

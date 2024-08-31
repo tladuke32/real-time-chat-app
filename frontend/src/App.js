@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import Login from './components/Login';
 import Register from './components/Register';
 import Chat from './components/Chat';
-import Notifications from './components/Notifications';
 import GroupManagement from './components/GroupManagement';
 import UserProfile from './components/UserProfile';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -38,12 +37,7 @@ function App() {
                 </header>
                 {user ? (
                     <Routes>
-                        <Route path="/chat" element={
-                            <>
-                                <Notifications user={user} />
-                                <Chat user={user} />
-                            </>
-                        } />
+                        <Route path="/chat" element={<Chat user={user} />} />
                         <Route path="/groups" element={<GroupManagement user={user} />} />
                         <Route path="/profile" element={<UserProfile user={user} />} />
                         <Route path="/" element={<Chat user={user} />} />

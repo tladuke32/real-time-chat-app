@@ -1,14 +1,20 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import '../styles/chat.css'; // Assuming CSS is set for styling
 
 function Chat({ user }) {
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
-    const [ws, setWs] = useState(null);
+    const wsRef = useRef(null);
 
-    const wsURL = `${process.env.REACT_APP_API_URL.replace('http', 'ws')}/ws`;
+    const wsURL = `${process.env.REACT_APP_API_URL.replace(/^http/, 'ws')}/ws`;
 
     // Function to initialize WebSocket connection
-    const connectWebSocket = useCallback(() => {
+    const connectWebSocket = () => {
+        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+            console.log('WebSocket is already connected or connecting.');
+            return;
+        }
+
         const socket = new WebSocket(wsURL);
 
         socket.onopen = () => {
@@ -16,8 +22,17 @@ function Chat({ user }) {
         };
 
         socket.onmessage = (event) => {
-            const data = JSON.parse(event.data); // Assuming message data comes in JSON format
-            setMessages(prevMessages => [...prevMessages, data]);
+            const data = JSON.parse(event.data);
+            console.log('Message received from WebSocket:', data); // Log the received message
+
+            // Check for duplicates based on timestamp or unique ID if available
+            setMessages(prevMessages => {
+                if (prevMessages.some(msg => msg.id === data.id && msg.username === data.username)) {
+                    console.log('Duplicate message detected, ignoring:', data);
+                    return prevMessages;
+                }
+                return [...prevMessages, data];
+            });
         };
 
         socket.onerror = (error) => {
@@ -26,34 +41,42 @@ function Chat({ user }) {
 
         socket.onclose = (event) => {
             console.log('WebSocket connection closed', event);
-            if (event.code !== 1000) { // Reconnect only if the close was abnormal
+            wsRef.current = null;
+            if (event.code !== 1000) {
                 setTimeout(() => {
                     connectWebSocket();
                 }, 5000);
             }
         };
 
-        setWs(socket);
-        return () => {
-            if (socket.readyState === WebSocket.OPEN) {
-                socket.close();
-            }
-        };
-    }, [wsURL]);
+        wsRef.current = socket;
+    };
 
     // Establish WebSocket connection on component mount
     useEffect(() => {
-        const cleanup = connectWebSocket();
-        return cleanup; // Cleanup WebSocket on component unmount
-    }, [connectWebSocket]);
+        console.log('Connecting WebSocket on component mount.');
+        connectWebSocket();
+
+        // Cleanup WebSocket on component unmount
+        return () => {
+            if (wsRef.current) {
+                console.log('Cleaning up WebSocket connection on component unmount.');
+                wsRef.current.close();
+            }
+        };
+    }, []); // Empty dependency array ensures this runs only once on mount
 
     // Handler for sending messages
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            const messageData = { username: user.username, message }; // Send username with the message
-            ws.send(JSON.stringify(messageData));
-            setMessage('');
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            const messageData = { username: user.username, message };
+            console.log('Sending message:', messageData);
+            wsRef.current.send(JSON.stringify(messageData));
+
+            // Add the message to the local state immediately
+            setMessages(prevMessages => [...prevMessages, { ...messageData, local: true }]);
+            setMessage(''); // Clear the input field
         } else {
             console.error('WebSocket is not open. Cannot send message.');
         }
@@ -63,10 +86,11 @@ function Chat({ user }) {
         <div className="chat-container">
             <h2>Chat</h2>
             <div className="messages">
-                {messages
-                    .filter(msg => msg.username !== user.username) // Filter out messages sent by the current user
-                    .map((msg, idx) => (
-                    <div key={idx} className="message">
+                {messages.map((msg, idx) => (
+                    <div
+                        key={idx}
+                        className={`message ${msg.username === user.username ? 'sent' : 'received'}`}
+                    >
                         <strong>{msg.username || "Anonymous"}:</strong> {msg.message}
                     </div>
                 ))}

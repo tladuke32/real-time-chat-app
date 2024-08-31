@@ -1,7 +1,7 @@
 package myhandlers
 
 import (
-	"github.com/gorilla/websocket"
+		"github.com/gorilla/websocket"
 	"log"
 	"net/http"
 	"sync"
@@ -9,53 +9,56 @@ import (
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for now
+		//origin := r.Header.Get("Origin")
+		//allowedOrigins := map[string]bool{
+		//	"http://localhost:3000": true, // Example allowed origin
+		//}
+		//return allowedOrigins[origin]
+		return true
 	},
 }
 
-var clients = make(map[*websocket.Conn]bool)
-var lock = sync.Mutex{}
+var clients sync.Map // Using sync.Map for concurrent-safe access
 
 func WebSocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println("WebSocket Upgrade error:", err)
+		log.Printf("WebSocket Upgrade error: %v", err)
+		http.Error(w, "Could not open WebSocket connection", http.StatusBadRequest)
 		return
 	}
-	defer conn.Close()
-
-	lock.Lock()
-	clients[conn] = true
-	lock.Unlock()
-
-	log.Println("WebSocket client connected")
 	defer func() {
-		lock.Lock()
-		delete(clients, conn)
-		lock.Unlock()
+		conn.Close()
+		clients.Delete(conn)
 		log.Println("WebSocket client disconnected")
 	}()
+
+	log.Println("WebSocket client connected")
+	clients.Store(conn, true)
 
 	for {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Error reading message:", err)
+			log.Printf("Error reading message: %v", err)
 			break
 		}
 
-		broadcastMessage(messageType, message)
+		log.Printf("Broadcasting message: %s", string(message)) // Log each broadcast
+		go broadcastMessage(messageType, message) // Ensure this runs only once per message
 	}
 }
 
 func broadcastMessage(messageType int, message []byte) {
-	lock.Lock()
-	defer lock.Unlock()
-
-	for client := range clients {
-		if err := client.WriteMessage(messageType, message); err != nil {
-			log.Println("Error writing message:", err)
-			client.Close()
-			delete(clients, client)
+	clients.Range(func(key, value interface{}) bool {
+		client, ok := key.(*websocket.Conn)
+		if !ok {
+			return true
 		}
-	}
+		if err := client.WriteMessage(messageType, message); err != nil {
+			log.Printf("Error writing message: %v", err)
+			client.Close()
+			clients.Delete(client)
+		}
+		return true
+	})
 }
