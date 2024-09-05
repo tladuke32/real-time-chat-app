@@ -1,11 +1,11 @@
 variable "aws_region" {
   description = "The AWS region to deploy in"
-  default     = "us-east-1"
+  default     = "us-east-2"
 }
 
 variable "ami_id" {
   description = "AMI ID for the EC2 instance"
-  default     = "ami-0c02fb55956c7d316" # Amazon Linux 2 AMI (example)
+  default     = "ami-0490fddec0cbeb88b" # Amazon Linux 2 AMI (example)
 }
 
 variable "instance_type" {
@@ -19,4 +19,14 @@ variable "key_name" {
 
 variable "private_key_path" {
   description = "Path to the private key file for SSH access"
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block for the VPC"
+  default     = "10.0.0.0/16"
+}
+
+variable "subnet_cidr" {
+  description = "CIDR block for the public subnet"
+  default     = "10.0.1.0/24"
 }
