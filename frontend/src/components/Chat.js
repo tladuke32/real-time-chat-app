@@ -5,8 +5,18 @@ function Chat({ user }) {
     const [messages, setMessages] = useState([]);
     const [message, setMessage] = useState('');
     const wsRef = useRef(null);
-
     const wsURL = `${process.env.REACT_APP_API_URL.replace(/^http/, 'ws')}/ws`;
+
+    // Fetch chat history when the component mounts
+    const fetchChatHistory = async () => {
+        try {
+            const response = await fetch(`${process.env.REACT_APP_API_URL}/chat-history`);
+            const history = await response.json();
+            setMessages(history);
+        } catch (error) {
+            console.error('Error fetching chat history:', error);
+        }
+    };
 
     // Function to initialize WebSocket connection
     const connectWebSocket = () => {
@@ -27,7 +37,7 @@ function Chat({ user }) {
 
             // Check for duplicates based on timestamp or unique ID if available
             setMessages(prevMessages => {
-                if (prevMessages.some(msg => msg.id === data.id && msg.username === data.username)) {
+                if (prevMessages.some(msg => msg.id === data.id)) {
                     console.log('Duplicate message detected, ignoring:', data);
                     return prevMessages;
                 }
@@ -55,6 +65,7 @@ function Chat({ user }) {
     // Establish WebSocket connection on component mount
     useEffect(() => {
         console.log('Connecting WebSocket on component mount.');
+        fetchChatHistory();
         connectWebSocket();
 
         // Cleanup WebSocket on component unmount
@@ -86,9 +97,9 @@ function Chat({ user }) {
         <div className="chat-container">
             <h2>Chat</h2>
             <div className="messages">
-                {messages.map((msg, idx) => (
+                {messages.map((msg) => (
                     <div
-                        key={idx}
+                        key={msg.id}
                         className={`message ${msg.username === user.username ? 'sent' : 'received'}`}
                     >
                         <strong>{msg.username || "Anonymous"}:</strong> {msg.message}

@@ -2,11 +2,12 @@ package myhandlers
 
 import (
 	"encoding/json"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 
-	"github.com/tladuke32/real-time-chat-app/models"
 	"github.com/go-playground/validator/v10"
+	"github.com/tladuke32/real-time-chat-app/models"
 )
 
 var validate = validator.New()
@@ -24,7 +25,7 @@ func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Write(response)
 }
 
-func CreateGroup(w http.ResponseWriter, r *http.Request) {
+func CreateGroup(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var group models.Group
 	if err := json.NewDecoder(r.Body).Decode(&group); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request payload"})
@@ -47,7 +48,7 @@ func CreateGroup(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, Response{Status: http.StatusCreated, Message: "Group created successfully", Data: group})
 }
 
-func AddMemberToGroup(w http.ResponseWriter, r *http.Request) {
+func AddMemberToGroup(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var member models.GroupMember
 	if err := json.NewDecoder(r.Body).Decode(&member); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request payload"})
@@ -70,7 +71,7 @@ func AddMemberToGroup(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, Response{Status: http.StatusOK, Message: "Member added successfully", Data: member})
 }
 
-func SendMessageToGroup(w http.ResponseWriter, r *http.Request) {
+func SendMessageToGroup(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var message models.GroupMessage
 	if err := json.NewDecoder(r.Body).Decode(&message); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request payload"})

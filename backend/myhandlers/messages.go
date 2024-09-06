@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"github.com/tladuke32/real-time-chat-app/models"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"sync"
 	"time"
 )
 
-var	lock    sync.Mutex
+var lock sync.Mutex
 
 type NewMessageData struct {
 	Content  string `json:"content" validate:"required"`
@@ -18,7 +19,7 @@ type NewMessageData struct {
 	Username string `json:"username" validate:"required"`
 }
 
-func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
+func HandleNewMessageHTTP(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var data NewMessageData
 	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request body"})
@@ -44,9 +45,9 @@ func HandleNewMessageHTTP(w http.ResponseWriter, r *http.Request) {
 func HandleNewMessage(content string, userID int, username string) error {
 	// Insert the new message into the database
 	message := models.Message{
-		UserID:    uint(userID),
-		Username:  username,
-		Content:   content,
+		UserID:   uint(userID),
+		Username: username,
+		Content:  content,
 	}
 
 	if err := db.Create(&message).Error; err != nil {
@@ -79,7 +80,7 @@ func BroadcastNotification(msg models.Message) {
 	})
 }
 
-func SendMessage(w http.ResponseWriter, r *http.Request) {
+func SendMessage(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var msg models.Message
 	if err := json.NewDecoder(r.Body).Decode(&msg); err != nil {
 		respondWithJSON(w, http.StatusBadRequest, Response{Status: http.StatusBadRequest, Message: "Invalid request payload"})
@@ -104,7 +105,7 @@ func SendMessage(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, Response{Status: http.StatusCreated, Message: "Message sent successfully", Data: msg})
 }
 
-func GetMessages(w http.ResponseWriter, r *http.Request) {
+func GetMessages(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var messages []models.Message
 
 	// Retrieve messages from the database

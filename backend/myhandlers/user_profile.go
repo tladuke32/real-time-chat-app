@@ -10,7 +10,7 @@ import (
 )
 
 // GetUserProfile retrieves a user's profile by username
-func GetUserProfile(w http.ResponseWriter, r *http.Request) {
+func GetUserProfile(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	username := r.URL.Query().Get("username")
 	var user models.User
 
@@ -34,7 +34,7 @@ func GetUserProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUserProfile updates a user's profile information
-func UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
+func UpdateUserProfile(d *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var user models.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		http.Error(w, "Invalid input", http.StatusBadRequest)

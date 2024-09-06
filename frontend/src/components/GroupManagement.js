@@ -48,7 +48,7 @@ function GroupManagement({ user }) {
             });
             if (response.ok) {
                 setSelectedGroup(groupId);
-                fetchGroupMessages(groupId);
+                FetchGroupMessages(groupId);
             } else {
                 console.error('Failed to join group');
             }
@@ -57,7 +57,7 @@ function GroupManagement({ user }) {
         }
     };
 
-    const fetchGroupMessages = async (groupId) => {
+    const FetchGroupMessages = async (groupId) => {
         try {
             const response = await fetch(`${process.env.REACT_APP_API_URL}/groups/messages?group_id=${groupId}`);
             const data = await response.json();

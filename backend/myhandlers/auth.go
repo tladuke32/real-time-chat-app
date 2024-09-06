@@ -5,6 +5,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/tladuke32/real-time-chat-app/models"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"os"
@@ -25,7 +26,7 @@ type Claims struct {
 
 // Login handles user authentication and JWT generation
 // Login handles user authentication and JWT generation
-func Login(w http.ResponseWriter, r *http.Request) {
+func Login(w *gorm.DB, r http.ResponseWriter, db *http.Request) {
 	var creds Credentials
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)

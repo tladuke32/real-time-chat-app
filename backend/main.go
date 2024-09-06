@@ -5,19 +5,20 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 )
-
-var once sync.Once
 
 func main() {
 	// Setup database connection using environment variables
 	done := make(chan bool)
+	var db *gorm.DB
+
 	go func() {
 		dbUser := os.Getenv("MYSQL_USER")
 		dbPassword := os.Getenv("MYSQL_PASSWORD")
@@ -25,23 +26,32 @@ func main() {
 		dbPort := os.Getenv("MYSQL_PORT")
 		dbName := os.Getenv("MYSQL_DATABASE")
 		dsn := dbUser + ":" + dbPassword + "@tcp(" + dbHost + ":" + dbPort + ")/" + dbName + "?timeout=5s"
-		myhandlers.InitDB(dsn, done)
+
+		var err error
+		db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+		if err != nil {
+			log.Fatalf("MySQL connection error: %v", err)
+			done <- false
+		} else {
+			log.Println("MySQL connection established.")
+			done <- true
+		}
 	}()
 
 	if !<-done {
 		log.Fatal("MySQL connection could not be established. Exiting.")
 	}
 
-	myhandlers.MigrateDB(myhandlers.GetDB())
+	myhandlers.MigrateDB(db)
 
 	// Setting up the HTTP router
 	r := mux.NewRouter()
 
 	// Group routes based on functionality
-	setupUserRoutes(r)
-	setupMessageRoutes(r)
-	setupGroupRoutes(r)
-	setupWebSocketRoutes(r)
+	setupUserRoutes(r, db)
+	setupMessageRoutes(r, db)
+	setupGroupRoutes(r, db)
+	setupWebSocketRoutes(r, db)
 
 	// CORS middleware configuration to handle cross-origin requests
 	corsHandler := handlers.CORS(
@@ -79,29 +89,58 @@ func main() {
 	log.Println("Server exited properly")
 }
 
-func setupUserRoutes(r *mux.Router) {
-	r.HandleFunc("/register", myhandlers.Register).Methods("POST")
-	r.HandleFunc("/login", myhandlers.Login).Methods("POST")
-	
+func setupUserRoutes(r *mux.Router, db *gorm.DB) {
+	r.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.RegisterUser(db, w, r)
+	}).Methods("POST")
+
+	r.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.Login(db, w, r)
+	}).Methods("POST")
+
 	userRouter := r.PathPrefix("/user").Subrouter()
-	userRouter.HandleFunc("/{username}", myhandlers.GetUserProfile).Methods("GET")
-	userRouter.HandleFunc("/{userId}/update", myhandlers.UpdateUserProfile).Methods("POST")
+	userRouter.HandleFunc("/{username}", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.GetUserProfile(db, w, r)
+	}).Methods("GET")
+	userRouter.HandleFunc("/{userId}/update", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.UpdateUserProfile(db, w, r)
+	}).Methods("POST")
 }
-
-func setupMessageRoutes(r *mux.Router) {
+func setupMessageRoutes(r *mux.Router, db *gorm.DB) {
 	messageRouter := r.PathPrefix("/messages").Subrouter()
-	messageRouter.HandleFunc("", myhandlers.GetMessages).Methods("GET")
-	messageRouter.HandleFunc("", myhandlers.HandleNewMessageHTTP).Methods("POST")
-	r.HandleFunc("/send", myhandlers.SendMessage).Methods("POST")
+
+	messageRouter.HandleFunc("", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.GetMessages(db, w, r)
+	}).Methods("GET")
+
+	messageRouter.HandleFunc("", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.HandleNewMessageHTTP(db, w, r)
+	}).Methods("POST")
+
+	r.HandleFunc("/send", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.SendMessage(db, w, r)
+	}).Methods("POST")
 }
 
-func setupGroupRoutes(r *mux.Router) {
+func setupGroupRoutes(r *mux.Router, db *gorm.DB) {
 	groupRouter := r.PathPrefix("/groups").Subrouter()
-	groupRouter.HandleFunc("/create", myhandlers.CreateGroup).Methods("POST")
-	groupRouter.HandleFunc("/add_member", myhandlers.AddMemberToGroup).Methods("POST")
-	groupRouter.HandleFunc("/send_message", myhandlers.SendMessageToGroup).Methods("POST")
+
+	groupRouter.HandleFunc("/create", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.CreateGroup(db, w, r)
+	}).Methods("POST")
+
+	groupRouter.HandleFunc("/add_member", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.AddMemberToGroup(db, w, r)
+	}).Methods("POST")
+
+	groupRouter.HandleFunc("/send_message", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.SendMessageToGroup(db, w, r)
+	}).Methods("POST")
 }
 
-func setupWebSocketRoutes(r *mux.Router) {
-	r.HandleFunc("/ws", myhandlers.WebSocketHandler).Methods("GET")
+// setupWebSocketRoutes sets up WebSocket routes
+func setupWebSocketRoutes(r *mux.Router, db *gorm.DB) {
+	r.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		myhandlers.WebSocketHandler(db, w, r)
+	}).Methods("GET")
 }

@@ -6,10 +6,10 @@ require (
 	github.com/go-playground/validator/v10 v10.22.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.3
-	github.com/jinzhu/gorm v1.9.16
 	golang.org/x/crypto v0.26.0
 	gorm.io/driver/mysql v1.5.7
 	gorm.io/gorm v1.25.11
