@@ -30,3 +30,22 @@ variable "subnet_cidr" {
   description = "CIDR block for the public subnet"
   default     = "10.0.1.0/24"
 }
+
+variable "ssh_private_key" {
+  description = "The private SSH key to access GitHub"
+  type        = string
+  sensitive   = true  # Mark this variable as sensitive
+}
+
+variable "env_variables" {
+  description = "Environment variables for the EC2 instance"
+  type = map(string)
+  default = {
+    MYSQL_ROOT_PASSWORD = "your_root_password"
+    MYSQL_DATABASE      = "your_database"
+    MYSQL_USER          = "your_user"
+    MYSQL_PASSWORD      = "your_password"
+    JWT_SECRET          = "jwt_secret"
+    REACT_APP_API_URL   = "http://localhost:8080"
+  }
+}

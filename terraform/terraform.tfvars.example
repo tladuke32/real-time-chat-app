@@ -1,0 +1,20 @@
+aws_region       = "us-east-1"
+ami_id           = "ami-0182f373e66f89c85" # Example AMI ID for Amazon Linux 2
+instance_type    = "t2.micro"
+key_name         = "ec2-kp"
+private_key_path = "./kp/ec2-kp.pem"
+vpc_cidr         = "10.0.0.0/16"
+subnet_cidr      = "10.0.1.0/24"
+env_variables = {
+  MYSQL_ROOT_PASSWORD = "chatpasswordsecret"
+  MYSQL_DATABASE = "chat_app"
+  MYSQL_USER = "chatuser"
+  MYSQL_PASSWORD = "chatpasswordstrongerthanstrongbutnottoostrong"
+  JWT_SECRET = "chatpasswordstrongerthanstrongbutnottoostrong"
+  REACT_APP_API_URL = "http://localhost:8080"
+}
+ssh_private_key = <<EOT
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+EOT

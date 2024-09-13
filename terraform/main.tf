@@ -1,6 +1,5 @@
 provider "aws" {
   region = var.aws_region
-  profile = "tladuke"
 }
 
 # VPC
@@ -85,7 +84,16 @@ resource "aws_instance" "demo_app" {
   subnet_id = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.allow_http.id]
 
-  user_data = file("user_data.sh")
+  # Render user data script with SSH private key
+  user_data = templatefile("user_data.sh", {
+    SSH_PRIVATE_KEY = var.ssh_private_key
+    MYSQL_ROOT_PASSWORD = var.env_variables["MYSQL_ROOT_PASSWORD"],
+    MYSQL_DATABASE      = var.env_variables["MYSQL_DATABASE"],
+    MYSQL_USER          = var.env_variables["MYSQL_USER"],
+    MYSQL_PASSWORD      = var.env_variables["MYSQL_PASSWORD"],
+    JWT_SECRET          = var.env_variables["JWT_SECRET"],
+    REACT_APP_API_URL   = var.env_variables["REACT_APP_API_URL"],
+  })
 
   tags = {
     Name = "RealTimeChatAppInstance"
