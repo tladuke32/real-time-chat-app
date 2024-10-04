@@ -25,29 +25,33 @@ type Claims struct {
 }
 
 // Login handles user authentication and JWT generation
-// Login handles user authentication and JWT generation
-func Login(w *gorm.DB, r http.ResponseWriter, db *http.Request) {
+func Login(db *gorm.DB, w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
+
+	// Decode the JSON request body into the Credentials struct
 	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		log.Printf("Error decoding request payload: %v", err)
 		return
 	}
 
-	var storedPassword string
-	err := db.Model(&models.User{}).Where("username = ?", creds.Username).Pluck("password", &storedPassword).Error
+	// Query the database for the user's stored password
+	var user models.User
+	err := db.Where("username = ?", creds.Username).First(&user).Error
 	if err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		log.Printf("Invalid login attempt for username: %s", creds.Username)
 		return
 	}
 
-	if err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(creds.Password)); err != nil {
+	// Compare the provided password with the stored hashed password
+	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(creds.Password)); err != nil {
 		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		log.Printf("Invalid password attempt for username: %s", creds.Username)
 		return
 	}
 
+	// Generate a JWT token
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		Username: creds.Username,
@@ -75,7 +79,7 @@ func Login(w *gorm.DB, r http.ResponseWriter, db *http.Request) {
 		SameSite: http.SameSiteStrictMode,          // Prevents CSRF
 	})
 
-	// Return the token in the response body along with a message
+	// Return the token in the response body along with a success message
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(map[string]string{

@@ -14,7 +14,7 @@ type Message struct {
 }
 
 // BeforeCreate hook to generate UUIDs before saving a new message
-func (m *Message) BeforeCreate(scope *gorm.Scope) error {
-	uuid := uuid.New().String() // Generate a new UUID
-	return scope.SetColumn("ID", uuid)
+func (m *Message) BeforeCreate(tx *gorm.DB) (err error) {
+	m.ID = uuid.New().String() // Generate a new UUID
+	return
 }
