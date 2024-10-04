@@ -59,14 +59,13 @@ func main() {
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type"},
 		AllowCredentials: true,
-	})
-	handler := corsHandler.Handler(r)
+	}).Handler(r)
 
 	// Start the HTTP server on port 8080
 	log.Println("Starting server on :8080")
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: handler,
+		Handler: corsHandler,
 	}
 
 	// Server run in a goroutine
