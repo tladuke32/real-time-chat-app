@@ -55,9 +55,10 @@ func main() {
 
 	// CORS middleware configuration to handle cross-origin requests
 	corsHandler := cors.New(cors.Options{
-		AllowedOrigins: []string{"http;//localhost", "http;//18.191.149.15"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Content-Type"},
+		AllowedOrigins:   []string{"http;//localhost", "http://18.191.149.15"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Content-Type"},
+		AllowCredentials: true,
 	})
 	handler := corsHandler.Handler(r)
 
