@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"github.com/tladuke32/real-time-chat-app/myhandlers"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -54,17 +54,18 @@ func main() {
 	setupWebSocketRoutes(r, db)
 
 	// CORS middleware configuration to handle cross-origin requests
-	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{"*"}), // Adjust in production to match your deployment
-		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
-		handlers.AllowedHeaders([]string{"Content-Type", "application/json"}),
-	)(r)
+	corsHandler := cors.New(cors.Options{
+		AllowedOrigins: []string{"http;//localhost", "http;//18.191.149.15"},
+		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders: []string{"Accept", "Content-Type"},
+	})
+	handler := corsHandler.Handler(r)
 
 	// Start the HTTP server on port 8080
 	log.Println("Starting server on :8080")
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: corsHandler,
+		Handler: handler,
 	}
 
 	// Server run in a goroutine
