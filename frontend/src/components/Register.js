@@ -12,7 +12,7 @@ function Register() {
         setSuccessMessage(''); // Clear any previous messages
         setErrorMessage('');
         try {
-            const response = await fetch(`'${apiURL}/register`, { // Use the API URL and endpoint
+            const response = await fetch(`'${process.env.REACT_APP_API_URL}/register`, { // Use the API URL and endpoint
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
