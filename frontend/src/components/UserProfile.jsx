@@ -9,7 +9,7 @@ function UserProfile({ user }) {
     useEffect(() => {
         const fetchUserProfile = async () => {
             try {
-                const response = await fetch(`http://18.191.149.15/user/${user.username}`);
+                const response = await fetch(`'${apiURL}/user/${user.username}`);
                 if (!response.ok) {
                     throw new Error('Failed to fetch profile');
                 }
@@ -33,7 +33,7 @@ function UserProfile({ user }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`http://18.191.149.15/user/${user.id}/update`, {
+            const response = await fetch(`'${apiURL}/user/${user.id}/update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(profile),

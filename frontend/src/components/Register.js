@@ -12,12 +12,12 @@ function Register() {
         setSuccessMessage(''); // Clear any previous messages
         setErrorMessage('');
         try {
-            const response = await fetch(`http://18.191.149.15/register`, { // Use the API URL and endpoint
+            const response = await fetch(`'${apiURL}/register`, { // Use the API URL and endpoint
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
             });
-            if (response.status === 201) {
+            if (response.ok) {
                 setSuccessMessage('Registration successful!');
             } else {
                 const errorText = await response.text();

@@ -9,7 +9,7 @@ function Login({ onLogin }) {
         e.preventDefault();
 
         try {
-            const response = await fetch(`http://18.191.149.15/login`, {
+            const response = await fetch(`'${apiURL}/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password }),
